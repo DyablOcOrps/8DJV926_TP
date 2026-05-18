@@ -12,6 +12,7 @@ pub struct Heartbeat {
     pub port: u16,
     pub zone: String,
     pub player_count: usize,
+    pub max_players: usize,
 }
 
 #[tokio::main]
@@ -54,6 +55,8 @@ async fn heartbeat_listener(redis_client: Client, port: u16) -> anyhow::Result<(
             // Mise à jour atomique dans Redis
             let _: () = con.hset(&key, "status", "available").await?;
             let _: () = con.hset(&key, "port", hb.port).await?;
+            let _: () = con.hset(&key, "player_count", hb.player_count).await?;
+            let _: () = con.hset(&key, "max_players", hb.max_players).await?;
             let _: () = con.expire(&key, 15).await?; 
             
             println!("Heartbeat reçu du serveur: {}", hb.id);
@@ -68,13 +71,37 @@ async fn scaler_loop(redis_client: Client, min_servers: usize) {
     loop {
         interval.tick().await;
         
-        // Logique simplifiée pour compter les serveurs
         if let Ok(mut con) = redis_client.get_async_connection().await {
+            // 1. On récupère toutes les clés des serveurs
             let keys: Vec<String> = con.keys("server:*").await.unwrap_or_default();
-            let count = keys.len();
+            let total_servers = keys.len();
+            
+            let mut all_servers_are_full = true;
 
-            if count < min_servers {
-                println!("Scaling: {}/{} serveurs. Lancement...", count, min_servers);
+            // 2. On inspecte chaque serveur pour voir s'il est plein
+            for key in &keys {
+                // On récupère le nombre de joueurs et le max
+                let player_count: usize = con.hget(key, "player_count").await.unwrap_or(0);
+                let max_players: usize = con.hget(key, "max_players").await.unwrap_or(1); // Évite la division par 0
+
+                // Si on trouve AU MOINS UN serveur qui n'est pas plein
+                if player_count < max_players {
+                    all_servers_are_full = false;
+                }
+            }
+
+            // Si la flotte est vide, alors par définition "tous les serveurs ne sont pas pleins", 
+            // mais on doit quand même spawn pour respecter le min_servers.
+            let technical_full = total_servers > 0 && all_servers_are_full;
+
+            // 3. Prise de décision pour le Scaling
+            if total_servers < min_servers || technical_full {
+                if technical_full {
+                    println!("Scaling: Tous les serveurs existants sont PLEINS ! Lancement d'un serveur de secours...");
+                } else {
+                    println!("Scaling: {}/{} serveurs. Lancement...", total_servers, min_servers);
+                }
+                
                 spawn_server(current_port).await;
                 current_port += 1;
             }
