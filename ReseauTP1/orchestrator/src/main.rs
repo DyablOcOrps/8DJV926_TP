@@ -2,18 +2,7 @@ use tokio::net::UdpSocket;
 use redis::{Client, AsyncCommands};
 use std::process::Command;
 use std::time::Duration;
-use serde::{Deserialize, Serialize};
-
-// Définition de la structure attendue des serveurs
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Heartbeat {
-    pub id: String,
-    pub ip: String,
-    pub port: u16,
-    pub zone: String,
-    pub player_count: usize,
-    pub max_players: usize,
-}
+use shared::{Heartbeat, GameMessage};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -51,9 +40,15 @@ async fn heartbeat_listener(redis_client: Client, port: u16) -> anyhow::Result<(
         if let Ok(hb) = serde_json::from_slice::<Heartbeat>(&buf[..len]) {
             let mut con = redis_client.get_async_connection().await?;
             let key = format!("server:{}", hb.id);
+
+            let status = if hb.player_count >= hb.max_players {
+                "full"
+            } else {
+                "available"
+            };
             
             // Mise à jour atomique dans Redis
-            let _: () = con.hset(&key, "status", "available").await?;
+            let _: () = con.hset(&key, "status", status).await?;
             let _: () = con.hset(&key, "port", hb.port).await?;
             let _: () = con.hset(&key, "player_count", hb.player_count).await?;
             let _: () = con.hset(&key, "max_players", hb.max_players).await?;
@@ -64,7 +59,7 @@ async fn heartbeat_listener(redis_client: Client, port: u16) -> anyhow::Result<(
     }
 }
 
-async fn scaler_loop(redis_client: Client, min_servers: usize) {
+async fn scaler_loop(redis_client: Client, min_available_servers: usize) {
     let mut interval = tokio::time::interval(Duration::from_secs(10));
     let mut current_port = 7000; // Gestion simple des ports
 
@@ -72,35 +67,27 @@ async fn scaler_loop(redis_client: Client, min_servers: usize) {
         interval.tick().await;
         
         if let Ok(mut con) = redis_client.get_async_connection().await {
-            // 1. On récupère toutes les clés des serveurs
+            // 1. On récupère toutes les clés des serveurs actifs
             let keys: Vec<String> = con.keys("server:*").await.unwrap_or_default();
-            let total_servers = keys.len();
             
-            let mut all_servers_are_full = true;
+            let mut available_servers_count = 0;
 
-            // 2. On inspecte chaque serveur pour voir s'il est plein
+            // 2. On compte combien de ces serveurs sont réellement disponibles
             for key in &keys {
-                // On récupère le nombre de joueurs et le max
-                let player_count: usize = con.hget(key, "player_count").await.unwrap_or(0);
-                let max_players: usize = con.hget(key, "max_players").await.unwrap_or(1); // Évite la division par 0
-
-                // Si on trouve AU MOINS UN serveur qui n'est pas plein
-                if player_count < max_players {
-                    all_servers_are_full = false;
+                let status: String = con.hget(key, "status").await.unwrap_or_else(|_| "full".to_string());
+                
+                if status == "available" {
+                    available_servers_count += 1;
                 }
             }
 
-            // Si la flotte est vide, alors par définition "tous les serveurs ne sont pas pleins", 
-            // mais on doit quand même spawn pour respecter le min_servers.
-            let technical_full = total_servers > 0 && all_servers_are_full;
+            println!("Statut de la flotte : {} serveur(s) disponible(s) sur {} au total (Seuil min : {})", 
+                     available_servers_count, keys.len(), min_available_servers);
 
-            // 3. Prise de décision pour le Scaling
-            if total_servers < min_servers || technical_full {
-                if technical_full {
-                    println!("Scaling: Tous les serveurs existants sont PLEINS ! Lancement d'un serveur de secours...");
-                } else {
-                    println!("Scaling: {}/{} serveurs. Lancement...", total_servers, min_servers);
-                }
+            // 3. Prise de décision : si on manque de serveurs "disponibles", on en crée un nouveau
+            if available_servers_count < min_available_servers {
+                println!("Scaling : Nombre de serveurs disponibles ({}) inférieur au minimum requis ({}). Lancement...", 
+                         available_servers_count, min_available_servers);
                 
                 spawn_server(current_port).await;
                 current_port += 1;
