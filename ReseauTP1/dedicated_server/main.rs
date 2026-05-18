@@ -7,36 +7,11 @@ use uuid::Uuid;
 // Cela garantit que le DS, l'Orchestrateur et le Gatekeeper utilisent exactement les mêmes structures de données.
 use shared::{Heartbeat, GameMessage}; 
 
-// ==========================================
-// 1. RESSOURCES BEVY (États globaux)
-// ==========================================
-
-// Configuration immuable du serveur définie au démarrage.
-#[derive(Resource)]
-pub struct ServerConfig {
-    pub id: String,
-    pub port: u16,
-    pub zone: String,
-    pub max_players: usize,
-    pub orchestrator_addr: SocketAddr,
-}
-
-// Permet d'accéder au réseau depuis n'importe quel système Bevy.
-#[derive(Resource)]
-struct ServerSocket(UdpSocket);
-
-// Registre des joueurs présents sur le serveur : associe l'adresse IP avec UUID en jeu
-#[derive(Resource, Default)]
-pub struct PlayerRegistry {
-    pub players: HashMap<SocketAddr, String>, // Adresse -> PlayerID
-}
-
-// Gestionnaire de la fréquence des heartbeats
-#[derive(Resource)]
-struct HeartbeatTimer(Timer);
+mod resources;
+use resources::{ServerConfig, ServerSocket, PlayerRegistry, HeartbeatTimer};
 
 // ==========================================
-// 2. MAIN (Fonction principale)
+// 1. MAIN (Fonction principale)
 // ==========================================
 
 fn main() {
@@ -70,7 +45,7 @@ fn main() {
 }
 
 // ==========================================
-// 3. SYSTÈMES BEVY 
+// 2. SYSTÈMES BEVY 
 // ==========================================
 
 // Système de démarrage : Initialise le canal réseau UDP.
