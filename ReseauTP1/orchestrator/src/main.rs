@@ -49,7 +49,9 @@ async fn heartbeat_listener(redis_client: Client, port: u16) -> anyhow::Result<(
             
             // Mise à jour atomique dans Redis
             let _: () = con.hset(&key, "status", status).await?;
+            let _: () = con.hset(&key, "ip", hb.ip).await?;
             let _: () = con.hset(&key, "port", hb.port).await?;
+            let _: () = con.hset(&key, "zone", hb.zone).await?;
             let _: () = con.hset(&key, "player_count", hb.player_count).await?;
             let _: () = con.hset(&key, "max_players", hb.max_players).await?;
             let _: () = con.expire(&key, 15).await?; 
