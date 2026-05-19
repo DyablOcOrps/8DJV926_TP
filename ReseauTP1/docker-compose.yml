@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # Le conteneur Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis-mmorpg
+    ports:
+      - "6379:6379"
+
+  # L'orchestrateur Rust
+  orchestrator:
+    image: rust:latest # Version de Rust, s'adapte automatiquement
+    container_name: mmorpg-orchestrator
+    volumes:
+      - .:/usr/src/myapp
+    working_dir: /usr/src/myapp
+    command: cargo run -p orchestrator
+    depends_on:
+      - redis
+    network_mode: "host" # Permet aux composants de se parler sur localhost facilement
+
+  # 3. Le gatekeeper Rust
+  gatekeeper:
+    image: rust:latest
+    container_name: mmorpg-gatekeeper
+    volumes:
+      - .:/usr/src/myapp
+    working_dir: /usr/src/myapp
+    command: cargo run -p gatekeeper
+    depends_on:
+      - redis
+    ports:
+      - "3000:3000"
+    network_mode: "host"
