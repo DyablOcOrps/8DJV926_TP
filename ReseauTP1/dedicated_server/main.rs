@@ -8,7 +8,11 @@ use uuid::Uuid;
 use shared::{Heartbeat, GameMessage}; 
 
 mod resources;
+mod protocol;
+mod authority;
+
 use resources::{ServerConfig, ServerSocket, PlayerRegistry, HeartbeatTimer};
+use authority::FlexibleAuthorityPlugin;
 
 // ==========================================
 // 1. MAIN (Fonction principale)
@@ -39,6 +43,7 @@ fn main() {
         })
         .insert_resource(PlayerRegistry::default())
         .insert_resource(HeartbeatTimer(Timer::from_seconds(5.0, TimerMode::Repeating)))
+        .add_plugins(FlexibleAuthorityPlugin)
         .add_systems(Startup, bind_socket)
         .add_systems(Update, (receive_packets, send_heartbeat).chain())
         .run();
