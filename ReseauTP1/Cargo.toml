@@ -3,6 +3,12 @@ members = [
     "dedicated_server",
     "Gatekeeper",
     "orchestrator",
-    "shared",
+    "shared", 
+    "broker",
+    "game_sockets",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+game_sockets = { path = "game_sockets", features = ["quic"] }
+
