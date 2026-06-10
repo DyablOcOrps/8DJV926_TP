@@ -166,7 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 
                 GameNetworkEvent::Message { connection, stream, data } => {
-                    // On donne le paquet à manger à ta logique de routage
+                    //call the handle packet
                     b.handle_packet(&peer, connection, &data);
                 }
                 
@@ -184,8 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Évite que le CPU tourne à 100% sur un thread vide. 
-        // 1ms de sleep est idéal pour un broker (faible latence).
+        //Small sleep to not overload CPU
         tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
     }
 }
