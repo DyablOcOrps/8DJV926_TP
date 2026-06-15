@@ -1,0 +1,12 @@
+[package]
+name = "broker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+shared = { path = "../shared" }
+game_sockets = { workspace = true }
+bytes = "1.5"
+uuid = { version = "1.0", features = ["v4"] }
+tokio = { version = "1", features = ["full"] }
+quinn = "0.11"
