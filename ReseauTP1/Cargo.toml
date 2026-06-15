@@ -3,6 +3,9 @@ members = [
     "dedicated_server",
     "Gatekeeper",
     "orchestrator",
+    "shared", "quadtree",
+]
+resolver = "2"
     "shared", 
     "broker",
     "game_sockets",
