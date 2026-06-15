@@ -2,11 +2,11 @@ use bevy::prelude::Vec2;
 use bevy::prelude::Rect;
 
 pub struct QuadTree {
-    bounds: Rect,
-    depth: u8,
-    max_depth: u8,
-    children: Option<Box<[QuadTree; 4]>>,
-    shard_id: Option<u32>,  // défini uniquement sur les feuilles
+    pub bounds: Rect,
+    pub depth: u8,
+    pub max_depth: u8,
+    pub children: Option<Box<[QuadTree; 4]>>,
+    pub shard_id: Option<u32>,  // défini uniquement sur les feuilles
 }
 
 impl QuadTree {

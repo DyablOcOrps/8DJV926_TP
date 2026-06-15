@@ -1,11 +1,49 @@
 mod quadtree;
 use quadtree::QuadTree;
 use bevy::prelude::Vec2;
+use bevy::prelude::Rect;
 use tokio::net::UdpSocket;
 use std::collections::{HashMap, HashSet};
 
-fn main() {
-    println!("Hello, world!");
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    println!("Initialisation du Service Spatial avec Bevy Math...");
+
+    // Définition des limites avec le Rect de Bevy (min_x, min_y, max_x, max_y)
+    let world_bounds = Rect::new(0.0, 0.0, 1000.0, 1000.0);
+
+    // Construction du QuadTree avec la logique Bevy Rect
+    let spatial_tree = QuadTree {
+        bounds: world_bounds,
+        depth: 0,
+        max_depth: 1,
+        shard_id: None,
+        children: Some(Box::new([
+            // Shard 0 : Moitié gauche (de x=0 à x=500)
+            QuadTree {
+                bounds: Rect::new(0.0, 0.0, 500.0, 500.0),
+                depth: 1,
+                max_depth: 1,
+                children: None,
+                shard_id: Some(0),
+            },
+            // Shard 1 : Moitié droite (de x=500 à x=1000)
+            QuadTree {
+                bounds: Rect::new(500.0, 0.0, 1000.0, 500.0),
+                depth: 1,
+                max_depth: 1,
+                children: None,
+                shard_id: Some(1),
+            },
+            QuadTree { bounds: Rect::new(0.0, 500.0, 500.0, 1000.0), depth: 1, max_depth: 1, children: None, shard_id: Some(2) },
+            QuadTree { bounds: Rect::new(500.0, 500.0, 1000.0, 1000.0), depth: 1, max_depth: 1, children: None, shard_id: Some(3) },
+        ])),
+    };
+
+    println!("Service Spatial en écoute sur le port 5000...");
+    listen_position_updates(spatial_tree).await?;
+
+    Ok(())
 }
 
 async fn listen_position_updates(quadtree: QuadTree) -> anyhow::Result<()> {
