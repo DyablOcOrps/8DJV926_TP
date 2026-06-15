@@ -14,6 +14,8 @@ services:
     container_name: mmorpg-orchestrator
     volumes:
       - .:/usr/src/myapp
+      # ATTENTION: Ajout d'une variable d'environnement pour utiliser game socket
+      - ${CARGO_REGISTRY_PATH:-./.cargo-cache}:/usr/local/cargo/registry
     working_dir: /usr/src/myapp
     command: cargo run -p orchestrator
     depends_on:
@@ -26,10 +28,24 @@ services:
     container_name: mmorpg-gatekeeper
     volumes:
       - .:/usr/src/myapp
+      #  ATTENTION: Ajout d'une variable d'environnement pour utiliser game socket
+      - ${CARGO_REGISTRY_PATH:-./.cargo-cache}:/usr/local/cargo/registry
     working_dir: /usr/src/myapp
     command: cargo run -p gatekeeper
     depends_on:
       - redis
     ports:
       - "3000:3000"
+    network_mode: "host"
+
+  broker:
+    image: rust:latest
+    container_name: mmorpg-broker
+    volumes:
+      - .:/usr/src/myapp
+      - ${CARGO_REGISTRY_PATH:-./.cargo-cache}:/usr/local/cargo/registry
+    working_dir: /usr/src/myapp
+    command: sh -c "apt-get update && apt-get install -y clang cmake build-essential protobuf-compiler libprotobuf-dev && cargo run -p broker"
+    depends_on:
+      - redis
     network_mode: "host"

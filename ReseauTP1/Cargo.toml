@@ -6,3 +6,12 @@ members = [
     "shared", "quadtree",
 ]
 resolver = "2"
+    "shared", 
+    "broker",
+    "game_sockets",
+]
+resolver = "2"
+
+[workspace.dependencies]
+game_sockets = { path = "game_sockets", features = ["quic"] }
+
