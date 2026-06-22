@@ -26,6 +26,7 @@ services:
   gatekeeper:
     image: rust:latest
     container_name: mmorpg-gatekeeper
+    
     volumes:
       - .:/usr/src/myapp
       #  ATTENTION: Ajout d'une variable d'environnement pour utiliser game socket
@@ -33,19 +34,38 @@ services:
     working_dir: /usr/src/myapp
     command: cargo run -p gatekeeper
     depends_on:
-      - redis
+      - orchestrator
     ports:
       - "3000:3000"
     network_mode: "host"
 
   broker:
-    image: rust:latest
+    build:
+      context: .
+      dockerfile: broker/Dockerfile
     container_name: mmorpg-broker
     volumes:
       - .:/usr/src/myapp
       - ${CARGO_REGISTRY_PATH:-./.cargo-cache}:/usr/local/cargo/registry
     working_dir: /usr/src/myapp
-    command: sh -c "apt-get update && apt-get install -y clang cmake build-essential protobuf-compiler libprotobuf-dev && cargo run -p broker"
+    #previous command to add dependencies
+    #command: sh -c "apt-get update && apt-get install -y clang cmake build-essential protobuf-compiler libprotobuf-dev && cargo run -p broker"
+    command: cargo run -p broker
     depends_on:
-      - redis
+      - gatekeeper
     network_mode: "host"
+
+  quadtree:
+    build:
+      context: .
+      dockerfile: quadtree/Dockerfile
+    container_name: mmorpg-QuadTree
+    volumes:
+       - .:/usr/src/myapp
+       - ${CARGO_REGISTRY_PATH:-./.cargo-cache}:/usr/local/cargo/registry
+    working_dir: /usr/src/myapp
+    command: cargo run -p quadtree
+    depends_on:
+      - broker
+    network_mode: "host"
+    

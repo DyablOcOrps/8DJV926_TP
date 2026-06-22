@@ -3,10 +3,8 @@ members = [
     "dedicated_server",
     "Gatekeeper",
     "orchestrator",
-    "shared", "quadtree",
-]
-resolver = "2"
     "shared", 
+    "quadtree",
     "broker",
     "game_sockets",
 ]
@@ -14,4 +12,3 @@ resolver = "2"
 
 [workspace.dependencies]
 game_sockets = { path = "game_sockets", features = ["quic"] }
-
